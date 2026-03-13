@@ -1,0 +1,35 @@
+
+Running Gradle task 'assembleRelease'...                        
+../../.pub-cache/hosted/pub.dev/win32-5.5.0/lib/src/guid.dart:32:9: Error: Type 'UnmodifiableUint8ListView' not found.
+  final UnmodifiableUint8ListView bytes;
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.pub-cache/hosted/pub.dev/win32-5.5.0/lib/src/guid.dart:32:9: Error: 'UnmodifiableUint8ListView' isn't a type.
+  final UnmodifiableUint8ListView bytes;
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.pub-cache/hosted/pub.dev/win32-5.5.0/lib/src/guid.dart:52:17: Error: Method not found: 'UnmodifiableUint8ListView'.
+    return Guid(UnmodifiableUint8ListView(guid));
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.pub-cache/hosted/pub.dev/win32-5.5.0/lib/src/guid.dart:56:31: Error: Method not found: 'UnmodifiableUint8ListView'.
+  factory Guid.zero() => Guid(UnmodifiableUint8ListView(Uint8List(16)));
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.pub-cache/hosted/pub.dev/win32-5.5.0/lib/src/guid.dart:100:17: Error: Method not found: 'UnmodifiableUint8ListView'.
+    return Guid(UnmodifiableUint8ListView(Uint8List.fromList(guidAsBytes)));
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildRelease'.
+> Process 'command '/Users/tiennh/Downloads/SDK/flutter_3.24.4/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 5s
+Running Gradle task 'assembleRelease'...                            5.8s
+Gradle task assembleRelease failed with exit code 1

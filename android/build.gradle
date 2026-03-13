@@ -1,0 +1,30 @@
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = '../build'
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+
+// Inject flutter properties at the root project level so all subprojects can see them
+// We use rootProject.ext so that project.flutter works (as project falls back to rootProject)
+rootProject.ext {
+    flutter = [
+        compileSdkVersion: 36,
+        minSdkVersion: 24,
+        targetSdkVersion: 34,
+        ndkVersion: "26.1.10909125"
+    ]
+}
+
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
