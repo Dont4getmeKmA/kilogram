@@ -4,9 +4,8 @@ import 'package:kilogram/pages/login_page.dart';
 import 'package:kilogram/pages/rooms_page.dart';
 import 'package:kilogram/utils/constants.dart';
 
-/// Page to redirect users to the appropreate page depending on the initial auth state
 class SplashPage extends StatefulWidget {
-  const SplashPage({Key? key}) : super(key: key);
+  const SplashPage({super.key});
 
   @override
   SplashPageState createState() => SplashPageState();
@@ -20,8 +19,8 @@ class SplashPageState extends State<SplashPage> {
   }
 
   Future<void> getInitialSession() async {
-    // quick and dirty way to wait for the widget to mount
     await Future.delayed(Duration.zero);
+    if (!mounted) return;
 
     try {
       final session = supabase.auth.currentSession;
@@ -29,19 +28,18 @@ class SplashPageState extends State<SplashPage> {
         Navigator.of(context)
             .pushAndRemoveUntil(LoginPage.route(), (_) => false);
       } else {
-        // Ensure keys exist before proceeding to rooms
         await _ensureKeysExist();
-        if (mounted) {
-          Navigator.of(context)
-              .pushAndRemoveUntil(RoomsPage.route(), (_) => false);
-        }
+        if (!mounted) return;
+
+        Navigator.of(context)
+            .pushAndRemoveUntil(RoomsPage.route(), (_) => false);
       }
     } catch (_) {
+      if (!mounted) return;
       context.showErrorSnackBar(
         message: 'Error occured during session refresh',
       );
-      Navigator.of(context)
-          .pushAndRemoveUntil(LoginPage.route(), (_) => false);
+      Navigator.of(context).pushAndRemoveUntil(LoginPage.route(), (_) => false);
     }
   }
 

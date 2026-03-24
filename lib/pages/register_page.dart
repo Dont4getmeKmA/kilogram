@@ -8,7 +8,7 @@ import 'package:kilogram/utils/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({Key? key, required this.isRegistering}) : super(key: key);
+  const RegisterPage({super.key, required this.isRegistering});
 
   static Route<void> route({bool isRegistering = false}) {
     return MaterialPageRoute(
@@ -93,7 +93,8 @@ class _RegisterPageState extends State<RegisterPage> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Xác nhận Email'),
-            content: const Text('Một email xác nhận đã được gửi đến hộp thư của bạn. Vui lòng nhấn vào liên kết trong email để kích hoạt tài khoản.'),
+            content: const Text(
+                'Một email xác nhận đã được gửi đến hộp thư của bạn. Vui lòng nhấn vào liên kết trong email để kích hoạt tài khoản.'),
             actions: [
               TextButton(
                 onPressed: () {
@@ -117,7 +118,8 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false); // Set loading to false in finally block
+        setState(
+            () => _isLoading = false); // Set loading to false in finally block
       }
     }
   }

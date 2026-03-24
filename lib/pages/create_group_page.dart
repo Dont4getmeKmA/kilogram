@@ -4,7 +4,7 @@ import 'package:kilogram/pages/chat_page.dart';
 import 'package:kilogram/utils/constants.dart';
 
 class CreateGroupPage extends StatefulWidget {
-  const CreateGroupPage({Key? key}) : super(key: key);
+  const CreateGroupPage({super.key});
 
   static Route<void> route() {
     return MaterialPageRoute(builder: (context) => const CreateGroupPage());

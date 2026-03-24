@@ -13,7 +13,7 @@ import 'package:timeago/timeago.dart';
 
 /// Displays the list of chat threads
 class RoomsPage extends StatefulWidget {
-  const RoomsPage({Key? key}) : super(key: key);
+  const RoomsPage({super.key});
 
   static Route<void> route() {
     return MaterialPageRoute(
@@ -35,14 +35,17 @@ class _RoomsPageState extends State<RoomsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_currentIndex == 0 ? 'Kilogram' : (_currentIndex == 1 ? 'Nhóm' : 'Hồ sơ')),
+        title: Text(_currentIndex == 0
+            ? 'Kilogram'
+            : (_currentIndex == 1 ? 'Nhóm' : 'Hồ sơ')),
         automaticallyImplyLeading: false,
         actions: [
           if (_currentIndex == 1)
             IconButton(
               icon: const Icon(Icons.group_add),
               tooltip: 'Tạo nhóm',
-              onPressed: () => Navigator.of(context).push(CreateGroupPage.route()),
+              onPressed: () =>
+                  Navigator.of(context).push(CreateGroupPage.route()),
             ),
           if (_currentIndex == 2)
             IconButton(
@@ -60,10 +63,10 @@ class _RoomsPageState extends State<RoomsPage> {
       ),
       body: IndexedStack(
         index: _currentIndex,
-        children: [
-          const _RoomsList(isGroup: false),
-          const _RoomsList(isGroup: true),
-          const ProfilePage(),
+        children: const [
+          _RoomsList(isGroup: false),
+          _RoomsList(isGroup: true),
+          ProfilePage(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -89,12 +92,11 @@ class _RoomsPageState extends State<RoomsPage> {
       ),
     );
   }
-
 }
 
 class _RoomsList extends StatelessWidget {
   final bool isGroup;
-  const _RoomsList({Key? key, required this.isGroup}) : super(key: key);
+  const _RoomsList({required this.isGroup});
 
   @override
   Widget build(BuildContext context) {
@@ -104,8 +106,9 @@ class _RoomsList extends StatelessWidget {
           return preloader;
         } else if (state is RoomsLoaded) {
           final newUsers = state.newUsers;
-          final rooms = state.rooms.where((room) => room.isGroup == isGroup).toList();
-          
+          final rooms =
+              state.rooms.where((room) => room.isGroup == isGroup).toList();
+
           if (rooms.isEmpty && isGroup) {
             return const Center(child: Text('Bạn chưa tham gia nhóm nào'));
           }
@@ -126,7 +129,8 @@ class _RoomsList extends StatelessWidget {
                             prefixIcon: Icon(Icons.search),
                           ),
                           onChanged: (val) {
-                            BlocProvider.of<RoomCubit>(context).searchUsers(val);
+                            BlocProvider.of<RoomCubit>(context)
+                                .searchUsers(val);
                           },
                         ),
                       ),
@@ -138,17 +142,23 @@ class _RoomsList extends StatelessWidget {
                         itemCount: rooms.length,
                         itemBuilder: (context, index) {
                           final room = rooms[index];
-                          final otherUser = isGroup ? null : (room.otherUserId != null ? profiles[room.otherUserId] : null);
+                          final otherUser = isGroup
+                              ? null
+                              : (room.otherUserId != null
+                                  ? profiles[room.otherUserId]
+                                  : null);
 
                           return ListTile(
                             onTap: () {
                               if (isGroup) {
                                 Navigator.of(context).push(
-                                  ChatPage.route(room.id, Profile(
-                                    id: room.id,
-                                    username: room.name ?? 'Group Chat',
-                                    createdAt: room.createdAt,
-                                  )),
+                                  ChatPage.route(
+                                      room.id,
+                                      Profile(
+                                        id: room.id,
+                                        username: room.name ?? 'Group Chat',
+                                        createdAt: room.createdAt,
+                                      )),
                                 );
                               } else if (otherUser != null) {
                                 Navigator.of(context).push(
@@ -157,16 +167,25 @@ class _RoomsList extends StatelessWidget {
                               }
                             },
                             leading: CircleAvatar(
-                              backgroundImage: isGroup 
-                                ? null 
-                                : (otherUser?.avatarUrl != null ? NetworkImage(otherUser!.avatarUrl!) : null),
-                              child: isGroup 
-                                ? const Icon(Icons.group)
-                                : (otherUser == null ? preloader : (otherUser.avatarUrl == null ? Text(otherUser.username.substring(0, 2)) : null)),
+                              backgroundImage: isGroup
+                                  ? null
+                                  : (otherUser?.avatarUrl != null
+                                      ? NetworkImage(otherUser!.avatarUrl!)
+                                      : null),
+                              child: isGroup
+                                  ? const Icon(Icons.group)
+                                  : (otherUser == null
+                                      ? preloader
+                                      : (otherUser.avatarUrl == null
+                                          ? Text(otherUser.username
+                                              .substring(0, 2))
+                                          : null)),
                             ),
-                            title: Text(isGroup 
-                              ? (room.name ?? 'Group Chat') 
-                              : (otherUser == null ? 'Loading...' : otherUser.username)),
+                            title: Text(isGroup
+                                ? (room.name ?? 'Group Chat')
+                                : (otherUser == null
+                                    ? 'Loading...'
+                                    : otherUser.username)),
                             subtitle: room.lastMessage != null
                                 ? Text(
                                     room.lastMessage!.content,
@@ -189,7 +208,9 @@ class _RoomsList extends StatelessWidget {
             },
           );
         } else if (state is RoomsEmpty) {
-          if (isGroup) return const Center(child: Text('Bạn chưa tham gia nhóm nào'));
+          if (isGroup) {
+            return const Center(child: Text('Bạn chưa tham gia nhóm nào'));
+          }
           final newUsers = state.newUsers;
           return Column(
             children: [
@@ -225,10 +246,9 @@ class _RoomsList extends StatelessWidget {
 
 class _NewUsers extends StatelessWidget {
   const _NewUsers({
-    Key? key,
     required this.newUsers,
     this.state,
-  }) : super(key: key);
+  });
 
   final List<Profile> newUsers;
   final RoomState? state;

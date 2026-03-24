@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kilogram/cubits/profiles/profiles_cubit.dart';
 import 'package:kilogram/utils/constants.dart';
 
-/// Widget that will display a user's avatar
 class UserAvatar extends StatelessWidget {
   const UserAvatar({
     super.key,

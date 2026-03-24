@@ -10,7 +10,7 @@ import 'package:kilogram/utils/theme_provider.dart';
 import 'package:provider/provider.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({super.key});
 
   static Route<void> route() {
     return MaterialPageRoute(builder: (context) => const ProfilePage());

@@ -10,11 +10,8 @@ import 'package:kilogram/models/message.dart';
 import 'package:kilogram/utils/constants.dart';
 import 'package:timeago/timeago.dart';
 
-/// Page to chat with someone.
-///
-/// Displays chat bubbles as a ListView and TextField to enter new chat.
 class ChatPage extends StatelessWidget {
-  const ChatPage({Key? key, required this.otherUser}) : super(key: key);
+  const ChatPage({super.key, required this.otherUser});
 
   final Profile otherUser;
 
@@ -23,7 +20,6 @@ class ChatPage extends StatelessWidget {
       builder: (context) => BlocProvider<ChatCubit>(
         create: (context) {
           final cubit = ChatCubit();
-          // Start listener immediately for realtime, fetch keys in background
           cubit.setMessagesListener(roomId);
           _fetchAndSetKeys(cubit, otherUser.id);
           return cubit;
@@ -33,7 +29,6 @@ class ChatPage extends StatelessWidget {
     );
   }
 
-  /// Fetch recipient's public keys then tell the cubit to enable E2EE + re-decrypt
   static Future<void> _fetchAndSetKeys(
       ChatCubit cubit, String otherUserId) async {
     try {
@@ -52,7 +47,7 @@ class ChatPage extends StatelessWidget {
         await cubit.setRecipientKeys(keys);
       }
     } catch (e) {
-      // Non-fatal: chat works in plaintext fallback
+      debugPrint('Error fetching keys: $e');
     }
   }
 
@@ -129,7 +124,6 @@ class ChatPage extends StatelessWidget {
                     itemCount: messages.length,
                     itemBuilder: (context, index) {
                       final message = messages[index];
-                      // Optional: check previous/next message to determine bubble rounding
                       return _ChatBubble(message: message);
                     },
                   ),
@@ -161,11 +155,8 @@ class ChatPage extends StatelessWidget {
   }
 }
 
-/// Set of widget that contains TextField and Button to submit message
 class _MessageBar extends StatefulWidget {
-  const _MessageBar({
-    Key? key,
-  }) : super(key: key);
+  const _MessageBar();
 
   @override
   State<_MessageBar> createState() => _MessageBarState();
@@ -285,9 +276,8 @@ class _MessageBarState extends State<_MessageBar> {
 
 class _ChatBubble extends StatelessWidget {
   const _ChatBubble({
-    Key? key,
     required this.message,
-  }) : super(key: key);
+  });
 
   final Message message;
 
@@ -311,7 +301,6 @@ class _ChatBubble extends StatelessWidget {
                   ? CrossAxisAlignment.end
                   : CrossAxisAlignment.start,
               children: [
-                // Username label
                 if (username.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 3),

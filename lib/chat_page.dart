@@ -6,11 +6,8 @@ import 'package:kilogram/utils/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timeago/timeago.dart';
 
-/// Page to chat with someone.
-///
-/// Displays chat bubbles as a ListView and TextField to enter new chat.
 class ChatPage extends StatefulWidget {
-  const ChatPage({Key? key}) : super(key: key);
+  const ChatPage({super.key});
 
   static Route<void> route() {
     return MaterialPageRoute(
@@ -33,22 +30,25 @@ class _ChatPageState extends State<ChatPage> {
         .from('messages')
         .stream(primaryKey: ['id'])
         .order('created_at')
-        .map((maps) => maps
-            .map((map) => Message.fromMap(map: map, myUserId: myUserId))
-            .toList());
+        .asyncMap((maps) async {
+          final messages = maps
+              .map((map) => Message.fromMap(map: map, myUserId: myUserId))
+              .toList();
+          for (final message in messages) {
+            if (_profileCache[message.profileId] == null) {
+              try {
+                final data = await supabase
+                    .from('profiles')
+                    .select()
+                    .eq('id', message.profileId)
+                    .single();
+                _profileCache[message.profileId] = Profile.fromMap(data);
+              } catch (_) {}
+            }
+          }
+          return messages;
+        });
     super.initState();
-  }
-
-  Future<void> _loadProfileCache(String profileId) async {
-    if (_profileCache[profileId] != null) {
-      return;
-    }
-    final data =
-        await supabase.from('profiles').select().eq('id', profileId).single();
-    final profile = Profile.fromMap(data);
-    setState(() {
-      _profileCache[profileId] = profile;
-    });
   }
 
   @override
@@ -73,11 +73,6 @@ class _ChatPageState extends State<ChatPage> {
                           itemBuilder: (context, index) {
                             final message = messages[index];
 
-                            /// I know it's not good to include code that is not related
-                            /// to rendering the widget inside build method, but for
-                            /// creating an app quick and dirty, it's fine 😂
-                            _loadProfileCache(message.profileId);
-
                             return _ChatBubble(
                               message: message,
                               profile: _profileCache[message.profileId],
@@ -99,9 +94,7 @@ class _ChatPageState extends State<ChatPage> {
 
 /// Set of widget that contains TextField and Button to submit message
 class _MessageBar extends StatefulWidget {
-  const _MessageBar({
-    Key? key,
-  }) : super(key: key);
+  const _MessageBar();
 
   @override
   State<_MessageBar> createState() => _MessageBarState();

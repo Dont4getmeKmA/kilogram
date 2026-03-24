@@ -33,7 +33,6 @@ class _LoginPageState extends State<LoginPage> {
     _authSubscription = supabase.auth.onAuthStateChange.listen((data) async {
       final session = data.session;
       if (session != null && mounted) {
-        // Generate keys for existing users who don't have them yet
         await _ensureKeysExist();
         if (mounted) {
           Navigator.of(context).pushReplacement(RoomsPage.route());
@@ -42,8 +41,6 @@ class _LoginPageState extends State<LoginPage> {
     });
   }
 
-  /// Generate and upload E2EE keys if this user doesn't have them.
-  /// Safe to call on every login — skips immediately if keys already exist.
   Future<void> _ensureKeysExist() async {
     try {
       final userId = supabase.auth.currentUser?.id;
@@ -73,8 +70,7 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text,
         password: _passwordController.text,
       );
-      
-      // Chờ hệ thống kiểm tra và tạo khóa xong mới tắt loading/vào app
+
       final userId = supabase.auth.currentUser?.id;
       if (userId != null) {
         debugPrint('[Login] Đăng nhập thành công, đang đồng bộ khóa...');
@@ -83,15 +79,17 @@ class _LoginPageState extends State<LoginPage> {
     } on AuthException catch (e) {
       String message = "Mật khẩu không chính xác hoặc email không tồn tại";
       if (e.message.toLowerCase().contains('confirm')) {
-        message = "Vui lòng xác nhận email trong hộp thư của bạn trước khi đăng nhập.";
+        message =
+            "Vui lòng xác nhận email trong hộp thư của bạn trước khi đăng nhập.";
       }
+      if (!mounted) return;
       context.showErrorSnackBar(message: message);
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     } catch (e) {
+      if (!mounted) return;
       context.showErrorSnackBar(message: "Đã có lỗi xảy ra: $e");
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
-    // Không set _isLoading = false ở đây để vòng xoay tiếp tục cho đến khi Navigator chuyển trang
   }
 
   @override
