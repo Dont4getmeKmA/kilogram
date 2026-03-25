@@ -162,19 +162,18 @@ class _MessageBarState extends State<_MessageBar> {
         'content': text,
       });
     } on PostgrestException catch (error) {
-      context.showErrorSnackBar(message: error.message);
+      if (mounted) context.showErrorSnackBar(message: error.message);
     } catch (_) {
-      context.showErrorSnackBar(message: unexpectedErrorMessage);
+      if (mounted) context.showErrorSnackBar(message: unexpectedErrorMessage);
     }
   }
 }
 
 class _ChatBubble extends StatelessWidget {
   const _ChatBubble({
-    Key? key,
     required this.message,
     required this.profile,
-  }) : super(key: key);
+  });
 
   final Message message;
   final Profile? profile;

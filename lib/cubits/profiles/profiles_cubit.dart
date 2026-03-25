@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:bloc/bloc.dart';
 import 'package:meta/meta.dart';
 import 'package:kilogram/models/profile.dart';
@@ -10,7 +9,6 @@ part 'profiles_state.dart';
 class ProfilesCubit extends Cubit<ProfilesState> {
   ProfilesCubit() : super(ProfilesInitial());
 
-  /// Map of app users cache in memory with profile_id as the key
   final Map<String, Profile?> _profiles = {};
 
   Future<void> getProfile(String userId) async {
@@ -36,8 +34,11 @@ class ProfilesCubit extends Cubit<ProfilesState> {
     emit(ProfilesLoaded(profiles: Map.from(_profiles)));
   }
 
-  Future<void> updateProfile(
-      {required String userId, String? username, String? avatarUrl}) async {
+  Future<void> updateProfile({
+    required String userId,
+    String? username,
+    String? avatarUrl,
+  }) async {
     final updateData = <String, dynamic>{};
     if (username != null) updateData['username'] = username;
     if (avatarUrl != null) updateData['avatar_url'] = avatarUrl;

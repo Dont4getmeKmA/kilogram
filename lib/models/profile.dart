@@ -6,16 +6,16 @@ class Profile {
     this.avatarUrl,
   });
 
-  /// User ID of the profile
+  /// ID định danh duy nhất của người dùng
   final String id;
 
-  /// Username of the profile
+  /// Tên hiển thị (username) của người dùng
   final String username;
 
-  /// Date and time when the profile was created
+  /// Ngày giờ tạo tài khoản
   final DateTime createdAt;
 
-  /// Optional avatar URL
+  /// Link URL ảnh đại diện (có thể null nếu người dùng chưa cập nhật)
   final String? avatarUrl;
 
   Map<String, dynamic> toMap() {

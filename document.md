@@ -14,7 +14,8 @@
 7. [Quản lý trạng thái — BLoC Pattern](#7-quản-lý-trạng-thái--bloc-pattern)
 8. [Bảo mật và Mã hóa Đầu cuối (E2EE)](#8-bảo-mật-và-mã-hóa-đầu-cuối-e2ee)
 9. [Luồng hoạt động chính](#9-luồng-hoạt-động-chính)
-10. [Kết luận](#10-kết-luận)
+10. [Các API và Tương tác dữ liệu](#10-các-api-và-tương-tác-dữ-liệu)
+11. [Kết luận](#11-kết-luận)
 
 ---
 
@@ -458,16 +459,35 @@ final ecdhKeyPair = await X25519().newKeyPair();
 // Private key: 32-byte Base64 → lưu FlutterSecureStorage
 ```
 
-**Lưu trữ khóa an toàn:**
-```dart
-// FlutterSecureStorage dùng Android Keystore / iOS Secure Enclave
-const storage = FlutterSecureStorage(
-  aOptions: AndroidOptions(encryptedSharedPreferences: true),
-);
-await storage.write(key: 'crypto_rsa_private', value: rsaPrivJson);
-await storage.write(key: 'crypto_elgamal_private', value: elgPrivJson);
-await storage.write(key: 'crypto_ecdh_private', value: ecdhPrivB64);
-```
+### 8.12 Tại sao phải có 3 loại khóa công khai?
+
+Giảng viên có thể thắc mắc tại sao không dùng 1 loại khóa. Kilogram sử dụng **Cơ chế lai (Hybrid)** để tối ưu:
+1.  **ecdh_public_key (X25519)**: Dùng riêng cho chat 1-1. Thuật toán này cực kỳ nhanh và tạo ra Shared Secret rất an toàn mà không cần truyền khóa AES qua mạng. 
+2.  **rsa_public_key (2048)**: Dùng để làm **Chữ ký số**. Khác với ECDH là để "giấu" tin, RSA ở đây dùng để "đóng dấu" nhằm xác thực danh tính người gửi (Alice gửi thì đúng là Alice, không ai giả mạo được).
+3.  **elgamal_public_key (2048)**: Dùng cho **Chat nhóm**. Khi Admin tạo nhóm, họ tạo ra 1 khóa AES chung cho cả nhóm, sau đó dùng ElGamal để "gói" khóa đó gửi riêng cho từng người. ElGamal được chọn vì cấu trúc toán học của nó phù hợp với việc mã hóa khóa (Key Encapsulation) trong môi trường phân phối khóa nhóm.
+
+### 8.13 Private Key nằm ở đâu?
+
+Đây là câu hỏi quan trọng nhất về bảo mật:
+- **Nguyên tắc**: Khóa công khai (Public Key) đẩy lên Server, còn khóa bí mật (Private Key) **TUYỆT ĐỐI** không rời khỏi thiết bị.
+- **Vị trí**: Lưu trong **FlutterSecureStorage** (Hardware-backed).
+- **Phân tách**: Để hỗ trợ đa tài khoản (Multi-user), mỗi Private Key được lưu kèm prefix là `userId`:
+  - Ví dụ: `${userId}_ecdh_priv`.
+  - Khi User A đăng xuất, User B đăng nhập sẽ không thể đọc được khóa của User A dù nằm chung trên 1 điện thoại.
+
+---
+
+### 8.14 Giải thích các trường dữ liệu trong tin nhắn (Messages Table)
+
+Dưới đây là ý nghĩa của từng cột trong database (hình ảnh bạn cung cấp):
+
+| Trường (Field) | Ý nghĩa kỹ thuật | Chức năng thực tế |
+|---|---|---|
+| **ciphertext** | Bản mã AES-256-GCM | Nội dung tin nhắn đã được "khóa". Dạng: `Data.Nonce.MAC`. Server chỉ thấy 1 chuỗi Base64 dài vô nghĩa. |
+| **encrypted_key** | Khóa phiên (Session Key) | - Chat 1-1: Dùng đánh dấu phiên bản (versioning).<br>- Chat nhóm: Là khóa AES của phòng đã được mã hóa bằng ElGamal. |
+| **nonce** | Number used once | Một mã số ngẫu nhiên 12 bytes. Đảm bảo nếu bạn gửi 2 tin nhắn "Hello" giống hệt nhau, thì bản mã lưu trên Database vẫn sẽ khác nhau hoàn toàn. |
+| **hmac** | Hash-based MAC | Mã xác thực thông điệp. Dùng để kiểm tra xem gói tin có bị hacker chỉnh sửa trên đường truyền hay không (Tính toàn vẹn). |
+| **signature** | RSA Signature | Chữ ký số. Dùng Public Key của người gửi để verify. Nó chứng minh: "Tin nhắn này chắc chắn do chủ nhân tài khoản này gửi". |
 
 ---
 
@@ -753,7 +773,39 @@ Khóa riêng tư **không bao giờ rời khỏi thiết bị**. Supabase chỉ 
 
 ---
 
-## 10. Kết luận
+## 10. Các API và Tương tác dữ liệu
+
+Dưới đây là các phương thức API chính được ứng dụng Kilogram gọi đến hệ thống Backend (Supabase):
+
+### 10.1 Nhóm API Xác thực (Supabase Auth)
+- **Đăng ký**: `supabase.auth.signUp(email: email, password: password)`
+- **Đăng nhập**: `supabase.auth.signInWithPassword(email: email, password: password)`
+- **Đăng xuất**: `supabase.auth.signOut()`
+- **Kiểm tra phiên**: `supabase.auth.currentUser`
+
+### 10.2 Nhóm API Dữ liệu (Postgres / PostgREST)
+- **Tải danh sách phòng**: 
+  `supabase.from('room_participants').stream(primaryKey: ['room_id', 'profile_id'])`
+- **Tải tin nhắn**:
+  `supabase.from('messages').select().eq('room_id', roomId).order('created_at')`
+- **Gửi tin nhắn (E2EE)**:
+  `supabase.from('messages').insert({ 'room_id': ..., 'ciphertext': ..., 'signature': ... })`
+- **Cập nhật Profile/Keys**:
+  `supabase.from('profiles').update({ 'rsa_public_key': ... }).eq('id', myId)`
+
+### 10.3 Nhóm API Thời gian thực (Realtime)
+- **Lắng nghe tin nhắn mới**:
+  Sử dụng `supabase.channel('room_id').onPostgresChanges(event: INSERT, table: 'messages')` để nhận dữ liệu ngay khi có dòng mới được chèn vào bảng.
+
+### 10.4 Nhóm API Lưu trữ (Supabase Storage)
+- **Upload ảnh đại diện**:
+  `supabase.storage.from('avatars').uploadBinary(path, bytes)`
+- **Upload ảnh chat**:
+  `supabase.storage.from('chat_images').upload(path, file)`
+
+---
+
+## 11. Kết luận
 
 ### Tổng kết công nghệ sử dụng:
 
@@ -777,3 +829,80 @@ Khóa riêng tư **không bao giờ rời khỏi thiết bị**. Supabase chỉ 
 4. **Auto key generation** — User không cần làm gì thêm
 5. **Realtime** — Tin nhắn cập nhật tức thì không cần reload
 6. **RLS** — Phân quyền database chặt chẽ ở tầng server
+# BÁO CÁO KỸ THUẬT CHUYÊN SÂU: HỆ THỐNG TIN NHẮN E2EE KILOGRAM
+# Đề tài: Thiết kế và Triển khai Hệ thống Nhắn tin Bảo mật sử dụng Mật mã học Lai ghép (Hybrid Cryptosystem)
+
+---
+
+## 1. TỔNG QUAN ĐỀ TÀI
+Trong bối cảnh an ninh mạng phức tạp, việc bảo vệ quyền riêng tư của dữ liệu truyền tin là vô cùng cấp thiết. Đề tài **Kilogram** tập trung vào việc hiện thực hóa mô hình **Mã hóa đầu cuối (End-to-End Encryption - E2EE)**, đảm bảo nguyên tắc: **Chỉ người gửi và người nhận mới có khả năng đọc nội dung tin nhắn.**
+
+### Mục tiêu học thuật:
+- Triển khai thành công giao thức trao đổi khóa Diffie-Hellman trên đường cong Elliptic (X25519).
+- Kết hợp mã hóa đối xứng AES-GCM để tối ưu hóa hiệu năng và tính toàn vẹn.
+- Đảm bảo tính chống chối bỏ (Non-repudiation) thông qua chữ ký số RSA-2048.
+- Kiểm soát truy cập dữ liệu tại tầng Database bằng Row Level Security (RLS).
+
+---
+
+## 2. PHÂN TÍCH CƠ CHẾ MẬT MÃ (KHÍA CẠNH QUAN TRỌNG NHẤT)
+
+Để giảng viên dễ dàng đánh giá, chúng tôi chia hệ thống mật mã thành 4 lớp bảo vệ độc lập:
+
+### Lớp 1: Trao đổi khóa bí mật (ECDH X25519)
+Hệ thống không truyền "Chìa khóa" qua mạng. Thay vào đó, hai thiết bị sẽ tự "tính toán" ra một chìa khóa chung.
+- **Quy trình**: Alice lấy Khóa công khai của Bob (đang lưu trên Supabase) kết hợp với Khóa bí mật của chính mình (lưu tại máy Alice). Bob thực hiện thao tác tương tự.
+- **An toàn**: Ngay cả khi Supabase bị xâm nhập hoàn toàn, kẻ tấn công chỉ thấy các Khóa công khai và không bao giờ có thể tính toán được ra Chìa khóa chung này.
+
+### Lớp 2: Mã hóa nội dung (AES-256-GCM)
+Sau khi có Chìa khóa chung, tin nhắn sẽ được khóa bằng thuật toán AES.
+- **Tại sao chọn GCM?**: Đây là chế độ mã hóa "xác thực". GCM tạo ra một mã MAC đi kèm. Nếu tin nhắn bị thay đổi dù chỉ 1 bit trên đường truyền, quá trình giải mã sẽ báo lỗi ngay lập tức, ngăn chặn hoàn toàn các cuộc tấn công chỉnh sửa dữ liệu.
+
+### Lớp 3: Chữ ký số xác thực (RSA-2048)
+Mỗi tin nhắn mang theo một "dấu vân tay" kỹ thuật số.
+- Alice dùng khóa riêng RSA của mình để ký lên tin nhắn. Bob dùng khóa công khai RSA của Alice để xác minh. Điều này đảm bảo Bob luôn biết chắc chắn người gửi là Alice chứ không phải ai khác mạo danh.
+
+### Lớp 4: Key Stretching (Kéo dãn chìa khóa)
+Hệ thống sử dụng **SHA-256** để xử lý chìa khóa trước khi đưa vào mã hóa AES. Điều này giúp chìa khóa luôn có độ dài chuẩn 256-bit trên mọi hệ điều hành (Android/iOS), tránh các lỗi tương thích phần cứng.
+
+---
+
+## 3. KIẾN TRÚC BACKEND & BẢO MẬT DỮ LIỆU (SUPABASE)
+
+Hệ thống Backend của Kilogram được thiết kế theo tư duy **Zero-Knowledge Architecture**.
+
+### 3.1 Cấu trúc Cơ sở dữ liệu (RLS Secured)
+Thông qua kiểm tra thực tế trên Supabase Dashboard, các bảng được thiết lập như sau:
+- **`profiles`**: Lưu trữ các Public Key Bundle của người dùng. Mỗi khi người dùng đăng ký, 3 cặp khóa (RSA, ElGamal, ECDH) sẽ tự động được sinh ra và đẩy lên đây.
+- **`messages`**: Chỉ lưu trữ `ciphertext` (bản mã). Mọi dữ liệu nhạy cảm đều là các chuỗi ký tự vô nghĩa đối với bất kỳ ai không có chìa khóa.
+- **`group_keys`**: Dùng cho chat nhóm, đảm bảo mỗi thành viên đều có một "chìa khóa phòng" được mã hóa riêng cho họ bằng thuật toán **ElGamal**.
+
+### 3.2 Row Level Security (RLS) - "Chốt chặn cuối cùng"
+Hệ thống không tin tưởng hoàn toàn vào Application Layer, mà đặt bảo mật ngay tại Database:
+- **Nguyên tắc**: Một user chỉ được phép đọc tin nhắn nếu `auth.uid()` của họ có mặt trong danh sách thành viên của phòng chat tương ứng.
+- **Ý nghĩa**: Ngay cả một lỗi lầm trong code Frontend cũng không thể làm lộ tin nhắn người dùng vì Database sẽ từ chối trả về dữ liệu nếu không đúng quyền.
+
+---
+
+## 4. QUẢN LÝ CHÌA KHÓA TRÊN THIẾT BỊ (SECURE STORAGE)
+Chìa khóa bí mật (Private Key) - "linh hồn" của hệ thống - được lưu trữ cực kỳ nghiêm ngặt:
+- **Cách ly tài khoản**: Dùng tiền tố `${userId}_` để phân tách khóa của các người dùng khác nhau trên cùng 1 máy.
+- **Phần cứng bảo mật**: Khóa được lưu trong Keystore (Android) hoặc Keychain (iOS), nơi mà ngay cả hệ điều hành cũng khó có thể truy cập trực tiếp.
+
+---
+
+## 5. PHẦN DÀNH CHO BẢO VỆ ĐỒ ÁN (CÂU HỎI PHẢN BIỆN)
+
+**Câu hỏi: Nếu Server Supabase bị chiếm quyền điều khiển hoàn toàn, dữ liệu người dùng có an toàn không?**
+- **Trả lời**: Vẫn an toàn. Server chỉ giữ bản mã và các khóa công khai. Nếu không có Khóa bí mật nằm trong thiết bị của người dùng, hacker không thể nào giải mã được tin nhắn. Hệ thống của chúng ta bảo vệ dữ liệu ở mức độ "In-transit" và cả "At-rest".
+
+**Câu hỏi: Tại sao lại dùng cả ElGamal lẫn RSA?**
+- **Trả lời**: RSA được dùng để Chữ ký số (xác thực danh tính). ElGamal được dùng để bọc khóa (Key Encapsulation) cho chat nhóm vì nó xử lý các khối dữ liệu lớn linh hoạt hơn trong mô hình phân phối khóa nhóm (GSK).
+
+---
+
+## 6. KẾT LUẬN
+Đồ án **Kilogram** đã thể hiện một quy trình nghiên cứu nghiêm túc về Mật mã học ứng dụng. Việc kết hợp N-layer bảo mật từ tầng thiết bị, tầng truyền tin đến tầng cơ sở dữ liệu giúp ứng dụng đạt được tiêu chuẩn bảo mật của các ứng dụng chính thống hàng đầu.
+
+**Người thực hiện: [Tên của bạn]**
+**Ngày cập nhật: 13/03/2026**

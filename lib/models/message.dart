@@ -15,25 +15,44 @@ class Message {
     this.signature,
   });
 
+  /// ID duy nhất của tin nhắn
   final String id;
+
+  /// ID của người gửi tin nhắn
   final String profileId;
+
+  /// ID của phòng chat chứa tin nhắn này
   final String roomId;
 
-  /// Plaintext content (after decryption, or original for legacy messages)
+  /// Nội dung tin nhắn (Đây là văn bản gốc nếu đã giải mã, hoặc tin nhắn chưa mã hoá từ phiên bản cũ)
   final String content;
 
+  /// Đường dẫn hình ảnh (nếu có)
   final String? imageUrl;
+
+  /// Ngày giờ gửi tin nhắn
   final DateTime createdAt;
+
+  /// Xác định xem đây có phải tin nhắn do chính mình gửi hay không
   final bool isMine;
 
-  // ── E2EE fields (null = legacy plaintext message) ──
+  // --- Các trường dữ liệu dành riêng cho Mã hoá Đầu cuối (E2EE) ---
+  /// Nội dung đã được mã hoá bằng thuật toán AES-256-GCM
   final String? ciphertext;
+
+  /// Khóa AES đã được bọc/mã hoá (dùng thuật toán ElGamal đối với chat nhóm hoặc chỉ là cờ báo 'v2_full')
   final String? encryptedKey;
+
+  /// Chuỗi dữ liệu ngẫu nhiên (nonce) dùng cho quá trình mã hoá/giải mã AES-GCM
   final String? nonce;
+
+  /// Mã xác thực (HMAC) để kiểm tra tính toàn vẹn, đảm bảo tin nhắn không bị sửa đổi
   final String? hmac;
+
+  /// Chữ ký điện tử RSA để xác minh chính xác danh tính người gửi tin
   final String? signature;
 
-  /// True if this message has been E2EE encrypted
+  /// Kỉểm tra xem tin nhắn này đã được mã hoá E2EE hay chưa
   bool get isEncrypted => ciphertext != null && ciphertext!.isNotEmpty;
 
   Map<String, dynamic> toMap() {
@@ -42,7 +61,6 @@ class Message {
       'room_id': roomId,
       'content': content,
       'image_url': imageUrl,
-      // E2EE fields (only included if set)
       if (ciphertext != null) 'ciphertext': ciphertext,
       if (encryptedKey != null) 'encrypted_key': encryptedKey,
       if (nonce != null) 'nonce': nonce,

@@ -18,11 +18,13 @@ class RoomCubit extends Cubit<RoomState> {
 
   late final String _myUserId;
 
-  /// List of new users of the app for the user to start talking to
+  /// Danh sách những thành viên mới gia nhập app để người dùng hiện tại có thể bắt chuyện (gợi ý kết bạn)
   List<Profile> _newUsers = [];
 
-  /// List of rooms
+  /// Danh sách các phòng chat mà người dùng đang tham gia
   List<Room> _rooms = [];
+
+  /// Subscription duy trì kết nối Realtime cho danh sách phòng chat
   StreamSubscription<List<Map<String, dynamic>>>? _rawRoomsSubscription;
   bool _haveCalledGetRooms = false;
 
@@ -34,7 +36,6 @@ class RoomCubit extends Cubit<RoomState> {
 
     _myUserId = supabase.auth.currentUser!.id;
 
-    // Ensure E2EE keys exist whenever we enter the main page
     unawaited(
         CryptoService.ensureKeysExistAndUploaded(_myUserId).catchError((e) {
       debugPrint('[RoomsCubit] E2EE key check failed: $e');
@@ -120,6 +121,7 @@ class RoomCubit extends Cubit<RoomState> {
         }
       }
 
+      if (!context.mounted) return;
       for (final room in _rooms) {
         _getNewestMessage(context: context, roomId: room.id);
         if (!room.isGroup && room.otherUserId != null) {
@@ -180,7 +182,7 @@ class RoomCubit extends Cubit<RoomState> {
         });
   }
 
-  /// Creates or returns an existing roomID of both participants
+  /// Hàm hỗ trợ: Tìm hoặc Tạo phòng chat 1-1 mới với người dùng khác
   Future<String> createRoom(String otherUserId) async {
     final data = await supabase
         .rpc('create_new_room', params: {'other_user_id': otherUserId});
@@ -188,7 +190,7 @@ class RoomCubit extends Cubit<RoomState> {
     return data as String;
   }
 
-  /// Creates a new group room
+  /// Hàm hỗ trợ: Tạo một nhóm chat (Group Chat) với nhiều thành viên
   Future<String> createGroup(String groupName,
       {List<String> memberIds = const []}) async {
     // 1. Create the room

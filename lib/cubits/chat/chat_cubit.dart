@@ -15,27 +15,28 @@ class ChatCubit extends Cubit<ChatState> {
   RealtimeChannel? _channel;
   List<Message> _messages = [];
 
-  late final String _roomId;
-  late final String _myUserId;
-
-  /// Public keys of the other participant (for encryption + decryption).
+  ///Khoá công khai (Public Keys) của người đang chat cùng (dùng cho chat 1-1)
   RemotePublicKeys? _recipientKeys;
 
-  /// Cache: profile_id → RemotePublicKeys (for incoming messages)
+  /// Bộ nhớ tạm (Cache) lưu khóa công khai thiết bị của nhiều người dùng khác (hữu dụng trong chat nhóm)
   final Map<String, RemotePublicKeys> _keysCache = {};
+  late final String _roomId;
+  late final String _myUserId;
 
   // ─────────────────────────────────────────────────────────────────────────
   // SETUP
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<void> setMessagesListener(String roomId) async {
+  Future<void> setMessagesListener(
+    String roomId,
+  ) async {
     _roomId = roomId;
     _myUserId = supabase.auth.currentUser!.id;
 
-    // 1. Initial load via REST API (always reliable)
+    // 1. Tải tin nhắn cũ (Lịch sử chat) thông qua REST API (đảm bảo không bị sót tin nhắn)
     await _loadMessages();
 
-    // 2. Realtime: subscribe to new inserts via channel
+    // 2. Bật kết nối Realtime WebSockets: Lắng nghe liên tục ngay khi có tin nhắn mới được thêm (insert) vào DB
     _channel = supabase
         .channel('room_chat_$roomId')
         .onPostgresChanges(
@@ -50,14 +51,9 @@ class ChatCubit extends Cubit<ChatState> {
           callback: (payload) async {
             final newRow = payload.newRecord;
             if (newRow.isEmpty) return;
-
             final msg = Message.fromMap(map: newRow, myUserId: _myUserId);
-
-            // Remove optimistic placeholder for my own messages
             _messages
                 .removeWhere((m) => m.id == 'new' && m.isMine && msg.isMine);
-
-            // Avoid duplicates
             if (_messages.any((m) => m.id == msg.id)) return;
 
             final decrypted = await _decryptOne(msg);
@@ -97,10 +93,10 @@ class ChatCubit extends Cubit<ChatState> {
     }
   }
 
-  /// Called after key fetch completes — triggers re-decrypt of cached messages.
-  Future<void> setRecipientKeys(RemotePublicKeys keys) async {
+  Future<void> setRecipientKeys(
+    RemotePublicKeys keys,
+  ) async {
     _recipientKeys = keys;
-    // Re-decrypt any messages that failed before keys were available
     if (_messages.isNotEmpty) {
       _messages = await _decryptAll(_messages);
       if (!isClosed) emit(ChatLoaded(List.from(_messages)));
@@ -112,6 +108,7 @@ class ChatCubit extends Cubit<ChatState> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> sendMessage(String text) async {
+    // 1. Giao diện lạc quan (Optimistic UI): Cập nhật thẳng màn hình trước khi gửi thật để tạo cảm giác mượt mà
     final optimistic = Message(
       id: 'new',
       roomId: _roomId,
@@ -155,8 +152,10 @@ class ChatCubit extends Cubit<ChatState> {
   // SEND IMAGE
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<void> sendImage(
-      {required Uint8List imageBytes, required String fileName}) async {
+  Future<void> sendImage({
+    required Uint8List imageBytes,
+    required String fileName,
+  }) async {
     final imagePath = '/$_roomId/$fileName';
     try {
       await supabase.storage
@@ -222,7 +221,7 @@ class ChatCubit extends Cubit<ChatState> {
       } catch (e2) {
         debugPrint('[ChatCubit] Retry decrypt failed: $e2');
       }
-      return msg.copyWith(content: '🔒 [Lỗi giải mã]');
+      return msg.copyWith(content: '[Lỗi giải mã]');
     }
   }
 
@@ -231,17 +230,15 @@ class ChatCubit extends Cubit<ChatState> {
     CryptoRole role;
 
     if (msg.isMine) {
-      // I am SENDER: To decrypt my own message, I need the RECIPIENT'S public key
+      // TRƯỜNG HỢP MÌNH VỪA GỬI TIN: Để giải mã tin nhắn hiển thị lại máy mình, mình cần Public Key của ĐỐI TÁC đã dùng để mã hoá cho họ
       otherPartyKeys = _recipientKeys;
       role = CryptoRole.sender;
 
       if (otherPartyKeys == null) {
-        // Try to find the other person's ID from the room/cache if possible
-        // For simplicity, if _recipientKeys is null, we can't decrypt our own old messages yet
         throw Exception('Recipient keys not loaded in Cubit');
       }
     } else {
-      // I am RECIPIENT: To decrypt an incoming message, I need the SENDER'S public key
+      // TRƯỜNG HỢP NHẬN TIN NHẮN TỪ NGƯỜI KHÁC: Để giải mã được, mình cần Public Key của chính NGƯỜI GỬI ĐÓ
       otherPartyKeys = _keysCache[msg.profileId];
       if (otherPartyKeys == null) {
         otherPartyKeys = await _fetchPublicKeys(msg.profileId);

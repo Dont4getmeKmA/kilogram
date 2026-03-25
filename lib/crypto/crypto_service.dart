@@ -7,9 +7,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pointycastle/export.dart' as pc;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Vai trò mã hoá/giải mã: người dùng hiện tại đóng vai trò là người gửi (sender) hay người nhận (recipient)
 enum CryptoRole { sender, recipient }
 
-/// Bundled public keys for upload to Supabase
+/// Gói chứa các Khóa Công Khai (Public Keys) của người dùng để lưu lên máy chủ Supabase
 class UserPublicKeyBundle {
   final String rsaPublicKey;
   final String elgamalPublicKey;
@@ -28,7 +29,7 @@ class UserPublicKeyBundle {
       };
 }
 
-/// Public keys of a remote user (fetched from Supabase)
+/// Dữ liệu khóa công khai của một người dùng khác (được tải về từ Supabase)
 class RemotePublicKeys {
   final String rsaPublicKey;
   final String elgamalPublicKey;
@@ -41,13 +42,22 @@ class RemotePublicKeys {
   });
 }
 
-/// Encrypted message payload sent to Supabase
+/// Cấu trúc gói tin đã được mã hoá hoàn chỉnh gửi lưu trữ trên cơ sở dữ liệu Supabase
 class EncryptedPayload {
-  final String ciphertext; // AES-256-GCM encrypted message
-  final String encryptedKey; // AES key encrypted with ElGamal
-  final String nonce; // AES-GCM nonce
-  final String hmac; // HMAC-SHA256 integrity tag
-  final String signature; // RSA-2048 digital signature
+  /// Nội dung tin nhắn đã được mã hoá đối xứng bằng thuật toán AES-256-GCM
+  final String ciphertext;
+
+  /// Khóa AES đã bị bọc/mã hoá (sử dụng thuật toán ElGamal cho Chat nhóm, hoặc chỉ là cờ báo đối với Chat 1-1)
+  final String encryptedKey;
+
+  /// Chuỗi ngẫu nhiên (chỉ dùng duy nhất 1 lần) làm biến số đầu vào cho hàm AES-GCM
+  final String nonce;
+
+  /// Mã chống giả mạo (HMAC-SHA256), đảm bảo nguyên vẹn dữ liệu từ lúc gửi đến lúc nhận
+  final String hmac;
+
+  /// Chữ ký định danh điện tử RSA-2048 để chứng minh chắc chắn ai là người gửi
+  final String signature;
 
   const EncryptedPayload({
     required this.ciphertext,
@@ -97,9 +107,9 @@ class CryptoService {
   // 1. KEY MANAGEMENT
   // ============================================================
 
-  /// Ensures that this device has a private key bundle AND the server has the public keys.
-  /// If missing, generates new ones and uploads them.
-  /// Returns successfully if keys exist on server, throws if upload fails.
+  /// Đảm bảo thiết bị này đã tạo Khóa riêng tư (Private Keys) VÀ máy chủ đã lưu Khóa công khai (Public Keys).
+  /// Nếu trên máy hoặc server bị thiếu, hàm tự động sinh (generate) nguyên bộ khóa mới và đăng tải chúng.
+  /// Quá trình này hoàn thành mượt mà nếu khóa có sẵn, hoặc sẽ quăng (throw) lỗi nếu kết nối Supabase trục trặc.
   static Future<void> ensureKeysExistAndUploaded(String userId,
       {bool force = false}) async {
     try {
@@ -202,6 +212,10 @@ class CryptoService {
   // 2. ENCRYPT — used when sending a message
   // ============================================================
 
+  /// [CHAT 1-1] MÃ HOÁ TIN NHẮN:
+  /// 1. Dùng Khóa công khai ECDH của người nhận kết hợp với Khóa riêng tư ECDH của mình để tính ra Khóa Bí Mật Chung (Shared Secret).
+  /// 2. Băm Shared Secret ra thành Khóa AES-256 thực sự.
+  /// 3. Dùng Khóa AES-256-GCM mã hoá nội dung văn bản (plaintext).
   static Future<EncryptedPayload> encryptMessage({
     required String plaintext,
     required RemotePublicKeys recipient,
@@ -211,8 +225,9 @@ class CryptoService {
 
     final myEcdhPrivB64 = await _storage.read(key: '${myId}_ecdh_priv');
     final myEcdhPubB64 = await _storage.read(key: '${myId}_ecdh_pub');
-    if (myEcdhPrivB64 == null || myEcdhPubB64 == null)
+    if (myEcdhPrivB64 == null || myEcdhPubB64 == null) {
       throw Exception('Local keys missing');
+    }
 
     final myEcdhPriv = SimpleKeyPairData(
       base64.decode(myEcdhPrivB64),
@@ -276,6 +291,9 @@ class CryptoService {
   // 3. DECRYPT — used when receiving a message
   // ============================================================
 
+  /// [CHAT 1-1] GIẢI MÃ TIN NHẮN:
+  /// Làm ngược lại bước mã hoá. Lấy Khóa riêng tư ECDH của mình + Khóa công khai ECDH đối tác = Khóa Bí Mật Chung.
+  /// Suy ra Khóa AES-256 và dùng nó để thu về văn bản gốc (plaintext).
   static Future<String> decryptMessage({
     required EncryptedPayload payload,
     required RemotePublicKeys otherParty,
@@ -291,8 +309,9 @@ class CryptoService {
       // 1. ECDH: Derive shared secret ──────────────────────
       final myEcdhPrivB64 = await _storage.read(key: '${myId}_ecdh_priv');
       final myEcdhPubB64 = await _storage.read(key: '${myId}_ecdh_pub');
-      if (myEcdhPrivB64 == null || myEcdhPubB64 == null)
+      if (myEcdhPrivB64 == null || myEcdhPubB64 == null) {
         throw Exception('Local keys missing for $myId');
+      }
 
       final myEcdhPriv = SimpleKeyPairData(
         base64.decode(myEcdhPrivB64),
@@ -361,6 +380,8 @@ class CryptoService {
   // GROUP CHAT helpers
   // ============================================================
 
+  /// [CHAT NHÓM]: TẠO KHÓA PHIÊN NHÓM (Group Session Key - GSK)
+  /// Là một chuỗi 32 bytes ngẫu nhiên làm chìa khóa đối xứng bảo vệ toàn bộ cuộc trò chuyện của một nhóm.
   static String generateGroupSessionKey() {
     final bytes = Uint8List(32);
     for (int i = 0; i < 32; i++) {
@@ -369,12 +390,16 @@ class CryptoService {
     return base64.encode(bytes);
   }
 
+  /// [CHAT NHÓM]: Khi mời người mới vào nhóm, trưởng nhóm dùng Khóa công khai ElGamal của người đó
+  /// để bọc (mã hoá) Khóa Phiên Nhóm (GSK) và gửi cho họ tĩnh lặng qua DB.
   static String encryptGroupKey(String gsk, String memberElGamalPublicKey) {
     final gskBytes = base64.decode(gsk);
     final pub = _parseElGamalPublic(memberElGamalPublicKey);
     return _elgamalEncrypt(gskBytes, pub);
   }
 
+  /// [CHAT NHÓM]: Thành viên mới mở khóa (giải mã) bằng Khóa Bí Mật ElGamal của chính họ
+  /// để nhận lại Khóa Phiên Nhóm (GSK) nhằm đọc tin nhắn mọi người.
   static Future<String> decryptGroupKey(
       String userId, String encryptedGsk) async {
     final elgPrivJson = await _storage.read(key: '${userId}_elgamal_priv');
@@ -383,6 +408,7 @@ class CryptoService {
     return base64.encode(gskBytes);
   }
 
+  /// [CHAT NHÓM]: Mã hoá tin nhắn gửi vào nhóm bằng Khóa Phiên Nhóm (GSK) chung (AES-256-GCM)
   static Future<String> encryptGroupMessage(
       String plaintext, String gskB64) async {
     final key = SecretKey(base64.decode(gskB64));
@@ -396,6 +422,7 @@ class CryptoService {
     });
   }
 
+  /// [CHAT NHÓM]: Thuật toán dùng Khóa Phiên Nhóm (GSK) để quy đổi về nội dung gốc
   static Future<String> decryptGroupMessage(
       String encryptedJson, String gskB64) async {
     final map = jsonDecode(encryptedJson);
@@ -450,8 +477,8 @@ class CryptoService {
     final key = _parseRsaPrivate(rsaPrivJson);
     final signer = pc.RSASigner(pc.SHA256Digest(), '0609608648016503040201');
     signer.init(true, pc.PrivateKeyParameter<pc.RSAPrivateKey>(key));
-    final sig = signer.generateSignature(utf8.encode(data) as Uint8List);
-    return base64.encode((sig as pc.RSASignature).bytes);
+    final sig = signer.generateSignature(Uint8List.fromList(utf8.encode(data)));
+    return base64.encode(sig.bytes);
   }
 
   static bool _rsaVerify(String data, String signatureB64, String rsaPubJson) {

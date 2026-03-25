@@ -10,22 +10,17 @@ class Room {
     this.lastMessage,
   });
 
-  /// ID of the room
+  /// ID định danh của phòng chat
   final String id;
-
-  /// Date and time when the room was created
+  /// Ngày giờ khởi tạo phòng chat
   final DateTime createdAt;
-
-  /// ID of the user who the user is talking to (for 1:1)
+  /// ID của người dùng còn lại (chỉ dùng cho chat 1-1, sẽ là null nếu là chat nhóm)
   final String? otherUserId;
-
-  /// Name of the room (for groups)
+  /// Tên của phòng chat (chỉ dùng cho chat nhóm)
   final String? name;
-
-  /// Whether it's a group room
+  /// Xác định xem đây là phòng chat nhóm (true) hay chat 1-1 (false)
   final bool isGroup;
-
-  /// Latest message submitted in the room
+  /// Tin nhắn mới nhất trong phòng (dùng để hiển thị nổi bật ở danh sách phòng)
   final Message? lastMessage;
 
   Map<String, dynamic> toMap() {
@@ -35,11 +30,11 @@ class Room {
     };
   }
 
-  /// Creates a room object from room_participants joined with rooms table
+  /// Tạo đối tượng Room từ dữ liệu join giữa bảng room_participants và bảng rooms
   Room.fromRoomParticipants(Map<String, dynamic> map, {String? currentUserId})
       : id = map['room_id'],
-        otherUserId = map[
-            'profile_id'], // This might be wrong for groups, but for 1:1 we filter it
+        // Lấy profile_id của người kia (phù hợp với logic lấy danh sách chat 1:1)
+        otherUserId = map['profile_id'],
         createdAt = DateTime.parse(map['created_at']),
         name = map['rooms']?['name'],
         isGroup = map['rooms']?['is_group'] ?? false,

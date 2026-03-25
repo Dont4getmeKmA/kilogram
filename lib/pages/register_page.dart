@@ -46,7 +46,7 @@ class _RegisterPageState extends State<RegisterPage> {
         haveNavigated = true;
         // Generate crypto keys after successful sign-up
         await _generateAndUploadKeys();
-        if (context.mounted) {
+        if (mounted) {
           Navigator.of(context).pushReplacement(RoomsPage.route());
         }
       }

@@ -90,6 +90,8 @@ class _ProfilePageState extends State<ProfilePage> {
             imageBytes,
           );
 
+      if (!mounted) return;
+
       final String imageUrl =
           supabase.storage.from('avatars').getPublicUrl(filePath);
 

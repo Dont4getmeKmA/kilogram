@@ -53,6 +53,7 @@ class _RoomsPageState extends State<RoomsPage> {
               tooltip: 'Logout',
               onPressed: () async {
                 await supabase.auth.signOut();
+                if (!context.mounted) return;
                 Navigator.of(context).pushAndRemoveUntil(
                   LoginPage.route(),
                   (route) => false,
@@ -270,8 +271,10 @@ class _NewUsers extends StatelessWidget {
                             .push(ChatPage.route(roomId, user));
                       }
                     } catch (_) {
-                      context.showErrorSnackBar(
-                          message: 'Failed creating a new room');
+                      if (context.mounted) {
+                        context.showErrorSnackBar(
+                            message: 'Failed creating a new room');
+                      }
                     }
                   },
                   child: Padding(
