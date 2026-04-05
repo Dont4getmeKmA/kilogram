@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
-import 'package:meta/meta.dart';
+import 'package:flutter/material.dart';
 import 'package:kilogram/models/profile.dart';
 import 'package:kilogram/utils/constants.dart';
 
@@ -29,6 +29,7 @@ class ProfilesCubit extends Cubit<ProfilesState> {
       }
     } catch (e) {
       _profiles[userId] = null;
+      debugPrint('Lỗi tải profile: $e');
     }
 
     emit(ProfilesLoaded(profiles: Map.from(_profiles)));

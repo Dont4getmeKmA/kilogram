@@ -10,6 +10,7 @@ import 'package:kilogram/pages/splash_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // url và key của supabase có thư viện supabase_flutter để hỗ trợ tích hợp
   await Supabase.initialize(
     url: 'https://utpxubagugeyuxmhxedk.supabase.co',
     anonKey:

@@ -107,14 +107,25 @@ class CryptoService {
   // 1. KEY MANAGEMENT
   // ============================================================
 
+  static Future<void>? _keysSyncFuture;
+
   /// Đảm bảo thiết bị này đã tạo Khóa riêng tư (Private Keys) VÀ máy chủ đã lưu Khóa công khai (Public Keys).
   /// Nếu trên máy hoặc server bị thiếu, hàm tự động sinh (generate) nguyên bộ khóa mới và đăng tải chúng.
   /// Quá trình này hoàn thành mượt mà nếu khóa có sẵn, hoặc sẽ quăng (throw) lỗi nếu kết nối Supabase trục trặc.
   static Future<void> ensureKeysExistAndUploaded(String userId,
-      {bool force = false}) async {
+      {bool force = false}) {
+    if (_keysSyncFuture != null && !force) {
+      return _keysSyncFuture!;
+    }
+    _keysSyncFuture = _ensureKeysExistAndUploadedInternal(userId, force: force);
+    return _keysSyncFuture!.whenComplete(() => _keysSyncFuture = null);
+  }
+
+  static Future<void> _ensureKeysExistAndUploadedInternal(String userId,
+      {required bool force}) async {
     try {
       debugPrint(
-          '[Crypto] Starting key check for user: $userId (force=$force)');
+          '[Crypto] Kiểm tra khóa cho user: $userId (force=$force)');
 
       // 1. Check local keys for THIS SPECIFIC USER
       bool hasLocal = await hasKeyBundle(userId);
@@ -130,7 +141,7 @@ class CryptoService {
           response != null && response['ecdh_public_key'] != null;
 
       if (hasLocal && hasServerEcdh && !force) {
-        debugPrint('[Crypto] Keys are consistent for $userId.');
+        debugPrint('[Crypto] Khóa hợp lệ và đồng bộ cho $userId.');
         return;
       }
 
@@ -144,9 +155,9 @@ class CryptoService {
           .update(payload)
           .eq('id', userId);
 
-      debugPrint('[Crypto] Keys updated successfully for $userId');
+      debugPrint('[Crypto] Cập nhật khóa thành công cho $userId');
     } catch (e) {
-      debugPrint('[Crypto] Key management failed: $e');
+      debugPrint('[Crypto] Quản lý khóa thất bại: $e');
       rethrow;
     }
   }
@@ -247,7 +258,7 @@ class CryptoService {
     final aesKeyBytes = (await Sha256().hash(sharedBytes)).bytes;
 
     debugPrint(
-        '[Crypto] Derived AES Key (Sender) first 4 bytes: ${aesKeyBytes.sublist(0, 4)}');
+        '[Crypto] Đã trích xuất Khóa AES (Người gửi) 4 bytes đầu: ${aesKeyBytes.sublist(0, 4)}');
 
     // 2. AES-256-GCM: encrypt plaintext ─────────────────────
     final secretKey = SecretKey(aesKeyBytes);
@@ -304,7 +315,7 @@ class CryptoService {
       final myId = Supabase.instance.client.auth.currentUser?.id;
       if (myId == null) throw Exception('Not authenticated');
 
-      debugPrint('[Crypto] Decrypting full-v2 for $myId as ${role.name}...');
+      debugPrint('[Crypto] Đang giải mã full-v2 cho $myId với vai trò ${role.name}...');
 
       // 1. ECDH: Derive shared secret ──────────────────────
       final myEcdhPrivB64 = await _storage.read(key: '${myId}_ecdh_priv');
@@ -339,7 +350,7 @@ class CryptoService {
         );
         if (base64.encode(computedHmac.bytes) != payload.hmac) {
           debugPrint(
-              '[Crypto] HMAC mismatch ignored for legacy v2, but detected.');
+              '[Crypto] Phát hiện mã HMAC không khớp (bỏ qua do tương thích chuẩn cũ).');
         }
       }
 
@@ -351,7 +362,7 @@ class CryptoService {
             payload.signature, signerRsaPublicKey);
         if (!isValid) {
           debugPrint(
-              '[Crypto] Warning: RSA signature invalid, but attempting decryption anyway.');
+              '[Crypto] Cảnh báo: Chữ ký RSA không hợp lệ, nhưng vẫn tiếp tục thử giải mã.');
         }
       }
 
@@ -371,7 +382,7 @@ class CryptoService {
 
       return utf8.decode(decrypted);
     } catch (e) {
-      debugPrint('[Crypto] Decrypt failed: $e');
+      debugPrint('[Crypto] Giải mã thất bại: $e');
       rethrow;
     }
   }
@@ -573,7 +584,7 @@ class CryptoService {
 
       return Uint8List.fromList(hex.decode(hexStr));
     } catch (e) {
-      debugPrint('[Crypto] ElGamal internal decrypt error: $e');
+      debugPrint('[Crypto] Lỗi giải mã nội bộ ElGamal: $e');
       rethrow;
     }
   }

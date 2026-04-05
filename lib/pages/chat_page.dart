@@ -47,7 +47,7 @@ class ChatPage extends StatelessWidget {
         await cubit.setRecipientKeys(keys);
       }
     } catch (e) {
-      debugPrint('Error fetching keys: $e');
+      debugPrint('Lỗi tải khóa: $e');
     }
   }
 

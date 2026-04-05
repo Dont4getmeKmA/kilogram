@@ -88,7 +88,7 @@ class ChatCubit extends Cubit<ChatState> {
         }
       }
     } catch (e) {
-      debugPrint('Load messages error: $e');
+      debugPrint('Lỗi tải tin nhắn: $e');
       if (!isClosed) emit(ChatError('Không thể tải tin nhắn: $e'));
     }
   }
@@ -141,7 +141,7 @@ class ChatCubit extends Cubit<ChatState> {
 
       await supabase.from('messages').insert(insertMap);
     } catch (e) {
-      debugPrint('Send message error: $e');
+      debugPrint('Lỗi gửi tin nhắn: $e');
       _messages.removeWhere((m) => m.id == 'new');
       emit(ChatLoaded(List.from(_messages)));
       emit(ChatError('Không thể gửi: $e'));
@@ -176,7 +176,7 @@ class ChatCubit extends Cubit<ChatState> {
       emit(ChatLoaded(List.from(_messages)));
       await supabase.from('messages').insert(message.toMap());
     } catch (e) {
-      debugPrint('Send image error: $e');
+      debugPrint('Lỗi gửi ảnh: $e');
       _messages.removeWhere((m) => m.id == 'new');
       emit(ChatLoaded(List.from(_messages)));
       String errorMessage = 'Lỗi tải ảnh: $e';
@@ -208,7 +208,7 @@ class ChatCubit extends Cubit<ChatState> {
       return await _attemptDecrypt(msg);
     } catch (e) {
       debugPrint(
-          '[ChatCubit] First decrypt failed, retrying with fresh keys...');
+          '[ChatCubit] Giải mã lần đầu thất bại, đang thử lại với khóa mới...');
       try {
         final freshKeys = await _fetchPublicKeys(msg.profileId);
         if (freshKeys != null) {
@@ -219,7 +219,7 @@ class ChatCubit extends Cubit<ChatState> {
           return await _attemptDecrypt(msg);
         }
       } catch (e2) {
-        debugPrint('[ChatCubit] Retry decrypt failed: $e2');
+        debugPrint('[ChatCubit] Thử giải mã lại thất bại: $e2');
       }
       return msg.copyWith(content: '[Lỗi giải mã]');
     }

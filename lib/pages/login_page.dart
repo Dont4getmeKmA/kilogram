@@ -47,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
       if (userId == null) return;
       await CryptoService.ensureKeysExistAndUploaded(userId);
     } catch (e) {
-      debugPrint('[Login] Key setup failed: $e');
+      debugPrint('[Login] Thiết lập khóa thất bại: $e');
     }
   }
 
@@ -74,7 +74,6 @@ class _LoginPageState extends State<LoginPage> {
       final userId = supabase.auth.currentUser?.id;
       if (userId != null) {
         debugPrint('[Login] Đăng nhập thành công, đang đồng bộ khóa...');
-        await _ensureKeysExist();
       }
     } on AuthException catch (e) {
       String message = "Mật khẩu không chính xác hoặc email không tồn tại";

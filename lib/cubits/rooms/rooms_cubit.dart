@@ -38,7 +38,7 @@ class RoomCubit extends Cubit<RoomState> {
 
     unawaited(
         CryptoService.ensureKeysExistAndUploaded(_myUserId).catchError((e) {
-      debugPrint('[RoomsCubit] E2EE key check failed: $e');
+      debugPrint('[RoomsCubit] Kiểm tra khóa E2EE thất bại: $e');
     }));
 
     late final List data;
@@ -51,7 +51,7 @@ class RoomCubit extends Cubit<RoomState> {
           .order('created_at')
           .limit(12);
     } catch (e) {
-      debugPrint('Error loading new users: $e');
+      debugPrint('Lỗi tải danh sách người dùng mới: $e');
       if (!isClosed) {
         emit(RoomsError('Error loading new users: $e'));
       }
@@ -135,7 +135,7 @@ class RoomCubit extends Cubit<RoomState> {
         ));
       }
     }, onError: (error) {
-      debugPrint('Error loading rooms: $error');
+      debugPrint('Lỗi tải danh sách phòng chat: $error');
       if (!isClosed) {
         emit(RoomsError('Error loading rooms: $error'));
       }
@@ -243,7 +243,7 @@ class RoomCubit extends Cubit<RoomState> {
         emit(RoomsEmpty(newUsers: _newUsers));
       }
     } catch (e) {
-      debugPrint('Error searching users: $e');
+      debugPrint('Lỗi tìm kiếm người dùng: $e');
     }
   }
 

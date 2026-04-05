@@ -59,7 +59,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if (userId == null) return;
       await CryptoService.ensureKeysExistAndUploaded(userId);
     } catch (e) {
-      debugPrint('[Register] Key setup failed: $e');
+      debugPrint('[Register] Thiết lập khóa thất bại: $e');
       rethrow; // Re-throw so the caller knows it failed
     }
   }
@@ -112,7 +112,7 @@ class _RegisterPageState extends State<RegisterPage> {
         context.showErrorSnackBar(message: error.message);
       }
     } catch (error) {
-      debugPrint(error.toString());
+      debugPrint('Lỗi đăng ký: ${error.toString()}');
       if (mounted) {
         context.showErrorSnackBar(message: unexpectedErrorMessage);
       }

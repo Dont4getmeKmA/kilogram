@@ -25,9 +25,11 @@ class SplashPageState extends State<SplashPage> {
     try {
       final session = supabase.auth.currentSession;
       if (session == null) {
+        debugPrint("session hết hạn hoặc không tồn tại -> màn login");
         Navigator.of(context)
             .pushAndRemoveUntil(LoginPage.route(), (_) => false);
       } else {
+        debugPrint("session còn tồn tại -> màn rooms");
         await _ensureKeysExist();
         if (!mounted) return;
 
@@ -37,7 +39,8 @@ class SplashPageState extends State<SplashPage> {
     } catch (_) {
       if (!mounted) return;
       context.showErrorSnackBar(
-        message: 'Error occured during session refresh',
+        message:
+            'Đã có lỗi xảy ra khi tải lại session (do api hoặc đường truyền)',
       );
       Navigator.of(context).pushAndRemoveUntil(LoginPage.route(), (_) => false);
     }
@@ -49,7 +52,7 @@ class SplashPageState extends State<SplashPage> {
       if (userId == null) return;
       await CryptoService.ensureKeysExistAndUploaded(userId);
     } catch (e) {
-      debugPrint('[Splash] Key setup failed: $e');
+      debugPrint('[Splash] Thiết lập khóa thất bại: $e');
     }
   }
 

@@ -236,7 +236,33 @@ class _ProfilePageState extends State<ProfilePage> {
                             ? 'Tài khoản của bạn an toàn'
                             : 'Khóa của bạn chưa được đồng bộ'),
                         trailing: _isKeysOk
-                            ? null
+                            ? IconButton(
+                                icon: const Icon(Icons.refresh),
+                                tooltip: 'Tạo lại khóa mới',
+                                onPressed: _isLoading ? null : () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Tạo lại khóa bảo mật?'),
+                                      content: const Text(
+                                          'Hành động này sẽ tạo mới toàn bộ Bộ khóa bảo mật của bạn. Nó sẽ sửa lỗi không thể nhắn tin hiện tại, nhưng các tin nhắn cũ bị lỗi sẽ không thể khôi phục. Bạn có chắc chắn muốn tiếp tục?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(),
+                                          child: const Text('Hủy'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                            _repairKeys();
+                                          },
+                                          child: const Text('Tạo lại'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              )
                             : TextButton(
                                 onPressed: _isLoading ? null : _repairKeys,
                                 child: const Text('Sửa ngay'),
